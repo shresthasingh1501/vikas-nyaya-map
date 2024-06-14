@@ -1,13 +1,20 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8" />
     <title>India Map with Markers</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
         #header {
             background-color: #003366;
             color: white;
@@ -16,40 +23,65 @@
             align-items: center;
             justify-content: space-between;
         }
+
         #header img {
             height: 40px;
             margin: 0 10px;
         }
+
         #header .title {
             flex-grow: 1;
             text-align: center;
             font-size: 20px;
             font-weight: bold;
         }
-        #map-container {
-            position: relative;
-            width: 100%;
-            height: calc(100vh - 60px);
-            border: 5px solid #003366;
+
+        #content {
+            display: grid;
+            grid-template-columns: 100%;
+            grid-template-rows: calc(100vh - 60px);
+            gap: 10px;
+            padding: 10px;
+            transition: grid-template-columns 0.3s ease-in-out;
         }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+        #map-container {
+            border: 5px solid #003366;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
         .legend {
             background-color: white;
             padding: 10px;
             font-family: Arial, sans-serif;
             position: absolute;
             bottom: 20px;
-            left: 20px;
+            /* Move legend to the right */
+            right: 20px; 
             z-index: 1;
             border: 1px solid #ccc;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            transition: opacity 0.3s ease-in-out;
         }
+
+        #charts.show .legend {
+            opacity: 0;
+            pointer-events: none;
+        }
+
         .legend h4 {
             margin: 0 0 5px;
         }
+
         .legend div {
             margin-bottom: 5px;
         }
+
         .legend span {
             border-radius: 50%;
             width: 10px;
@@ -57,70 +89,111 @@
             margin-right: 5px;
             display: inline-block;
         }
-        #chart-container {
-            position: absolute;
-            top: 60px;
-            right: 20px;
-            width: 300px;
-            background-color: white;
+
+        #charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: repeat(3, auto);
+            gap: 10px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        #charts.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .chart-container {
             border: 1px solid #ccc;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
-            display: none;
-            padding: 20px;
+            padding: 10px;
+            height: 300px;
         }
-        #chart-container canvas {
+
+        canvas {
             width: 100%;
-            height: auto;
+            height: 100%;
         }
-        #show-graphs {
+
+        .button-container {
             position: absolute;
-            top: 60px;
+            top: 70px;
             right: 20px;
-            z-index: 1;
+            z-index: 2;
+        }
+
+        button {
             background-color: #003366;
             color: white;
             border: none;
             padding: 10px 20px;
             cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0059b3;
         }
     </style>
 </head>
+
 <body>
     <div id="header">
         <img src="doj_white.png" alt="DOJ Logo">
-        <div class="title">Nyaya Vikas: Monitoring of CSS for Development of Infrastructure for Judiciary</div>
+        <div class="title">Nyaya Vikas: Monitoring of CSS for Development of Infrastructure for
+            Judiciary</div>
         <img src="isro.png" alt="ISRO Logo">
         <img src="bhuvan.png" alt="Bhuvan Logo">
     </div>
-    <div id="map-container">
-        <div id="map"></div>
-        <div id="legend" class="legend">
-            <h4>Legend</h4>
-            <div><span style="background-color: lightblue;"></span> Verified: Not Outdated</div>
-            <div><span style="background-color: darkblue;"></span> Verified: Outdated</div>
-            <div><span style="background-color: darkred;"></span> Unverified</div>
+
+    <div id="content">
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="legend" class="legend">
+                <h4>Legend</h4>
+                <div><span style="background-color: lightblue;"></span> Verified: Not Outdated</div>
+                <div><span style="background-color: darkblue;"></span> Verified: Outdated</div>
+                <div><span style="background-color: darkred;"></span> Unverified</div>
+            </div>
         </div>
-        <button id="show-graphs">Show Graphs</button>
-        <div id="chart-container">
-            <canvas id="pieChart"></canvas>
-            <canvas id="barChart"></canvas>
+        <div id="charts">
+            <div class="chart-container">
+                <canvas id="pieChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="barChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="ganttChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="radialBarChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="outdatedVsUpdatedChart"></canvas>
+            </div>
         </div>
     </div>
+    <div class="button-container">
+        <button onclick="showCharts()">Show Charts</button>
+        <button onclick="showMap()" style="display: none;">Show Map</button>
+    </div>
+
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
-    <script>
-        // Replace 'YOUR_MAPBOX_ACCESS_TOKEN' with your actual Mapbox access token
-        mapboxgl.accessToken = 'pk.eyJ1IjoiYWthc2gxZWtlIiwiYSI6ImNseGU5OTZ2bDBmOXMycW92Y3Y3c2Fha20ifQ.gfYb2GFZXg_0WqXkKyWgmw';
 
-        // Initialize the map
+    <script>
+        // Mapbox setup 
+        mapboxgl.accessToken = 'pk.eyJ1IjoiYWthc2gxZWtlIiwiYSI6ImNseGU5OTZ2bDBmOXMycW92Y3Y3c2Fha20ifQ.gfYb2GFZXg_0WqXkKyWgmw';
         var map = new mapboxgl.Map({
-            container: 'map', // container id
-            style: 'mapbox://styles/planemad/ckf4xcet7231819mm2e8njlca', // style URL
-            center: [82, 22.82], // starting position [lng, lat]
-            zoom: 5 // starting zoom
+            container: 'map',
+            style: 'mapbox://styles/planemad/ckf4xcet7231819mm2e8njlca',
+            center: [82, 22.82],
+            zoom: 5
         });
 
-        // Define a function to add markers
+
         function addMarker(lng, lat, color, info, imageUrl) {
             var aiReviewText = info.projname === 'Construction of family court Munger' ? 'Unverified' : 'Verified';
             var marker = new mapboxgl.Marker({ color: color })
@@ -141,22 +214,21 @@
             }
 
             var popup = new mapboxgl.Popup({
-                    offset: 25,
-                    closeButton: false,
-                    closeOnClick: false
-                })
-                .setHTML(popupContent);
+                offset: 25,
+                closeButton: false,
+                closeOnClick: false
+            }).setHTML(popupContent);
 
-            marker.getElement().addEventListener('mouseenter', function() {
+            marker.getElement().addEventListener('mouseenter', function () {
                 popup.setLngLat([lng, lat]);
                 popup.addTo(map);
             });
 
-            marker.getElement().addEventListener('mouseleave', function() {
+            marker.getElement().addEventListener('mouseleave', function () {
                 popup.remove();
             });
 
-            marker.getElement().addEventListener('click', function() {
+            marker.getElement().addEventListener('click', function () {
                 map.flyTo({
                     center: [lng, lat],
                     zoom: 15
@@ -164,107 +236,181 @@
             });
         }
 
-        // Load CSV data and add markers
         fetch('project.csv')
             .then(response => response.text())
             .then(data => {
                 Papa.parse(data, {
                     header: true,
-                    complete: function(results) {
-                        results.data.forEach(function(item) {
-                            var color;
-                            if (item.projname === 'Construction of family court Munger') {
-                                color = 'darkred'; // Set color to unverified (dark red) for this specific project
-                            } else if (item.ai_review === '1') {
-                                color = item.outdated === 'TRUE' ? 'darkblue' : 'lightblue';
-                            } else if (item.ai_review === '0') {
-                                color = 'darkred';
-                            }
-
+                    complete: function (results) {
+                        results.data.forEach(function (item) {
+                            var color = item.ai_review === '0' ? 'darkred' : 'lightblue';
                             addMarker(parseFloat(item.longitude1), parseFloat(item.latitude1), color, item, item.photo1 ? '/testphotos/' + item.photo1.replace('../photos/', '') : null);
                         });
                     }
                 });
             });
 
-        // Add the legend to the map
         map.on('load', function () {
             var legend = document.getElementById('legend');
-            map.getContainer().appendChild(legend);
+            document.getElementById('map-container').appendChild(legend);
         });
 
-        // Show graphs button event listener
-        document.getElementById('show-graphs').addEventListener('click', function() {
-            var chartContainer = document.getElementById('chart-container');
-            chartContainer.style.display = chartContainer.style.display === 'none' ? 'block' : 'none';
-            drawCharts();
-        });
 
-        // Draw the charts
-        function drawCharts() {
-            var ctxPie = document.getElementById('pieChart').getContext('2d');
-            var ctxBar = document.getElementById('barChart').getContext('2d');
+        var pieData = {
+            labels: ['Verified', 'Unverified'],
+            datasets: [{
+                data: [191, 1],
+                backgroundColor: ['#4CAF50', '#FF0000']
+            }]
+        };
 
-            // Pie chart data
-            var pieData = {
-                labels: ['Verified', 'Unverified'],
-                datasets: [{
-                    data: [191, 1],
-                    backgroundColor: ['#4CAF50', '#FF0000']
-                }]
-            };
+        var barData = {
+            labels: ['-1', '0', '10', '20', '40', '70', '90', '100'],
+            datasets: [{
+                label: 'Project Status',
+                data: [2, 1, 3, 1, 10, 5, 13, 163],
+                backgroundColor: '#2196F3'
+            }]
+        };
 
-            // Bar chart data
-            var barData = {
-                labels: ['-1', '0', '10', '20', '40', '70', '90', '100'],
-                datasets: [{
-                    label: 'Project Status',
-                    data: [2, 1, 3, 1, 10, 5, 13, 163],
-                    backgroundColor: '#2196F3'
-                }]
-            };
+         var ganttData = {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            datasets: [{
+                label: 'Project A',
+                backgroundColor: '#4CAF50', // Green
+                data: [
+                    { x: 'Jan', y: 50 },
+                    { x: 'Mar', y: 80 }, 
+                    { x: 'May', y: 100 } 
+                ]
+            },
+            {
+                label: 'Project B',
+                backgroundColor: '#FFC107', // Orange
+                data: [
+                    { x: 'Feb', y: 30 }, 
+                    { x: 'Apr', y: 60 }, 
+                    { x: 'Jun', y: 90 } 
+                ]
+            },
+            {
+                label: 'Project C',
+                backgroundColor: '#F44336', // Red
+                data: [
+                    { x: 'Mar', y: 20 }, 
+                    { x: 'May', y: 70 }, 
+                    { x: 'Jul', y: 100 }
+                ]
+            }]
+        };
 
-            // Create the pie chart
-            new Chart(ctxPie, {
-                type: 'pie',
-                data: pieData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: 'Verified vs Unverified Projects'
-                        }
-                    }
+        var radialBarData = {
+            labels: ['Type A', 'Type B', 'Type C'],
+            datasets: [{
+                label: 'Geotagged',
+                backgroundColor: 'green',
+                data: [12, 19, 3]
+            }, {
+                label: 'Non-Geotagged',
+                backgroundColor: 'red',
+                data: [2, 3, 5]
+            }]
+        };
+
+        var outdatedVsUpdatedData = {
+            labels: ['Outdated', 'Updated'],
+            datasets: [{
+                label: 'Project Status',
+                backgroundColor: ['red', 'green'],
+                data: [34, 157]
+            }]
+        };
+
+        new Chart(document.getElementById('pieChart').getContext('2d'), {
+            type: 'pie',
+            data: pieData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Verified vs Unverified Projects' }
                 }
-            });
+            }
+        });
 
-            // Create the bar chart
-            new Chart(ctxBar, {
-                type: 'bar',
-                data: barData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
+        new Chart(document.getElementById('barChart').getContext('2d'), {
+            type: 'bar',
+            data: barData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Project Status Distribution' }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        new Chart(document.getElementById('ganttChart').getContext('2d'), {
+            type: 'scatter', // Use scatter for more flexibility
+            data: ganttData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Project Timeline'
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'category', // Treat x-axis as categories
                         title: {
                             display: true,
-                            text: 'Project Status Distribution'
+                            text: 'Month'
                         }
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true
+                    y: {
+                        beginAtZero: true,
+                        max: 100, // Adjust max as needed
+                        title: {
+                            display: true,
+                            text: 'Progress (%)'
                         }
                     }
                 }
-            });
+            }
+        });
+
+        new Chart(document.getElementById('radialBarChart').getContext('2d'), {
+            type: 'polarArea',
+            data: radialBarData,
+        });
+
+        new Chart(document.getElementById('outdatedVsUpdatedChart').getContext('2d'), {
+            type: 'bar',
+            data: outdatedVsUpdatedData,
+        });
+
+        function showCharts() {
+            document.getElementById('content').style.gridTemplateColumns = '0% 100%';
+            document.getElementById('charts').classList.add('show');
+            document.querySelector('button[onclick="showCharts()"]').style.display = 'none';
+            document.querySelector('button[onclick="showMap()"]').style.display = 'block';
+        }
+
+        function showMap() {
+            document.getElementById('content').style.gridTemplateColumns = '100%';
+            document.getElementById('charts').classList.remove('show');
+            document.querySelector('button[onclick="showCharts()"]').style.display = 'block';
+            document.querySelector('button[onclick="showMap()"]').style.display = 'none';
         }
     </script>
 </body>
+
 </html>
